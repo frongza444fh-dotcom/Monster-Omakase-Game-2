@@ -3,14 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Monster Omakase - Mobile Ready</title>
+    <title>Monster Omakase - Audio Control</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Mali:wght@400;700&family=Fredoka:wght@600&display=swap');
 
-        /* ป้องกันการเด้งและเลื่อนหน้าจอบนมินิอุปกรณ์ */
         body { margin: 0; padding: 0; background-color: #2c3e50; display: flex; justify-content: center; align-items: center; height: 100vh; width: 100vw; font-family: 'Fredoka', 'Mali', sans-serif; overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; }
         
-        /* เกมคอนเทนเนอร์ ปรับให้เต็มจอแบบ 16:9 เสมอ */
         #game-container { 
             width: 100vw; height: 100vh; 
             max-width: calc(100vh * (16 / 9)); max-height: calc(100vw * (9 / 16)); 
@@ -22,7 +20,7 @@
         .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; flex-direction: column; justify-content: center; align-items: center; background-size: cover; background-position: center; background-repeat: no-repeat; }
         .active { display: flex; }
 
-        /* --- บังคับแนวนอน (Rotate Device Screen) --- */
+        /* --- บังคับแนวนอน --- */
         #orientation-warning { display: none; background: #ee5253; color: white; text-align: center; padding: 20px; z-index: 9999; }
         @media screen and (orientation: portrait) {
             #game-container { display: none !important; }
@@ -40,28 +38,34 @@
         #result-screen { background-image: url('leader board.png'); justify-content: center; }
         #leaderboard-screen { background-image: url('leader board.png'); justify-content: flex-start; padding-top: 5vmin; }
 
-        /* --- UI Elements (Responsive Sizes) --- */
+        /* --- UI Elements --- */
         .top-bar { position: absolute; top: 3vmin; width: 100%; display: flex; justify-content: center; align-items: center; z-index: 100; pointer-events: none; }
         .top-bar > div, .top-bar > button { pointer-events: auto; }
         #score-display, #boss-score-display { position: absolute; left: 4vmin; font-size: 4vmin; color: #333; text-shadow: 2px 2px #fff; font-weight: bold; }
         #timer-display, #boss-timer-display { font-size: 4.5vmin; color: #ff4757; background: rgba(255,255,255,0.8); padding: 1vmin 4vmin; border-radius: 4vmin; border: 0.4vmin solid #ff4757; }
-        
         .btn-home { position: absolute; right: 4vmin; background-color: #54a0ff; box-shadow: 0 0.8vmin 0 #2e86de; border: none; color: white; border-radius: 6vmin; padding: 1.5vmin 3vmin; cursor: pointer; font-family: 'Fredoka', sans-serif; font-size: 2.5vmin; white-space: nowrap; }
 
         .title-3d { font-size: 7vmin; color: #fff; text-shadow: 0 0.4vmin 0 #ff6b81, 0 0.8vmin 0 #ff6b81, 0 1.2vmin 1.5vmin rgba(0,0,0,0.4); margin-bottom: 3vmin; text-align: center; line-height: 1.2; }
-        .target-word { font-size: 10vmin; color: #fffa65; font-weight: bold; text-shadow: 0.5vmin 0.5vmin 0px #ff4757, 1vmin 1vmin 0px #333, 1.5vmin 1.5vmin 2vmin rgba(0,0,0,0.5); margin-bottom: 4vmin; z-index: 20; letter-spacing: 0.5vmin; }
         
+        .target-word { font-size: 10vmin; color: #fffa65; font-weight: bold; text-shadow: 0.5vmin 0.5vmin 0px #ff4757, 1vmin 1vmin 0px #333, 1.5vmin 1.5vmin 2vmin rgba(0,0,0,0.5); letter-spacing: 0.5vmin; margin: 0; }
+        .btn-replay { background: #54a0ff; color: white; border: none; border-radius: 50%; width: 10vmin; height: 10vmin; font-size: 5vmin; cursor: pointer; box-shadow: 0 0.8vmin 0 #2e86de; display: flex; justify-content: center; align-items: center; transition: transform 0.1s; }
+        .btn-replay:active { transform: translateY(0.5vmin); box-shadow: 0 0.3vmin 0 #2e86de; }
+
         .btn { padding: 2vmin 4vmin; font-size: 3vmin; background-color: #ff9ff3; color: white; border: none; border-radius: 6vmin; cursor: pointer; box-shadow: 0 0.8vmin 0 #f368e0; font-family: 'Fredoka', sans-serif; margin: 1vmin; transition: all 0.1s; -webkit-tap-highlight-color: transparent; white-space: nowrap; }
         .btn:active { transform: translateY(0.6vmin); box-shadow: 0 0.2vmin 0 #f368e0; }
         
         .mic-active-effect { box-shadow: 0 0 3vmin #ff6b81, 0 1vmin 0 #c0392b !important; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
+        /* --- Settings Button --- */
+        .settings-btn { position: absolute; top: 3vmin; right: 3vmin; font-size: 5vmin; background: white; border: none; border-radius: 50%; width: 9vmin; height: 9vmin; display: flex; justify-content: center; align-items: center; cursor: pointer; box-shadow: 0 0.8vmin 0 #ccc; z-index: 50; transition: transform 0.1s; }
+        .settings-btn:active { transform: translateY(0.5vmin); box-shadow: 0 0.3vmin 0 #ccc; }
+
         /* --- Game Elements --- */
         .mouth-zone { position: absolute; border-radius: 50%; z-index: 10; border: 0.6vmin dashed rgba(255, 255, 255, 0.7); background: rgba(255, 255, 255, 0.2); box-shadow: 0 0 2vmin rgba(255, 255, 255, 0.3); }
         .conveyor-belt { position: absolute; bottom: 0; width: 100%; height: 18vmin; z-index: 15; pointer-events: none; }
         
-        /* Sushi Art (Responsive) */
+        /* Sushi Art */
         .sushi-wrapper { position: absolute; bottom: 4vmin; display: flex; flex-direction: column; align-items: center; cursor: grab; filter: drop-shadow(0 1vmin 1vmin rgba(0,0,0,0.4)); user-select: none; z-index: 150; touch-action: none; transition: transform 0.1s; }
         .sushi-topping { width: 110%; height: 4vmin; border-radius: 3vmin 3vmin 1vmin 1vmin; margin-bottom: -1.5vmin; z-index: 2; border: 0.3vmin solid rgba(0,0,0,0.1); border-bottom: none; }
         .sushi-rice { background: #fff; border: 0.5vmin solid #ccc; padding: 1vmin 3vmin; border-radius: 1.5vmin 1.5vmin 3vmin 3vmin; font-size: 3vmin; font-weight: bold; color: #333; z-index: 1; text-align: center; box-shadow: inset -0.5vmin -0.5vmin 1vmin rgba(0,0,0,0.08); }
@@ -83,8 +87,10 @@
         th { background: #ff6b81; color: white; padding: 1.5vmin; position: sticky; top: 0; }
         td { padding: 1.5vmin; border-bottom: 0.2vmin solid #ddd; text-align: center; }
         
-        /* How to play text */
         .how-to-box { background: white; padding: 4vmin; border-radius: 4vmin; width: 80%; text-align: left; border: 1vmin solid #ff9ff3; box-shadow: 0 2vmin 3vmin rgba(0,0,0,0.1); font-size: 2.5vmin; }
+        
+        /* Styles for Settings Sliders */
+        input[type=range] { width: 100%; accent-color: #ff6b81; }
     </style>
 </head>
 <body>
@@ -99,8 +105,28 @@
 
 <div id="game-container">
     <div id="home-screen" class="screen active">
+        <button class="settings-btn" onclick="openSettings()">⚙️</button>
+
         <button class="btn" style="background-color: #54a0ff; box-shadow: 0 0.8vmin 0 #2e86de;" onclick="showScreen('how-to-screen')">How to Play</button>
         <button class="btn" style="font-size: 4vmin; padding: 3vmin 8vmin;" onclick="startGameSession()">START</button>
+    </div>
+
+    <div id="settings-modal" class="screen" style="background-color: rgba(0,0,0,0.8); z-index: 9999;">
+        <div class="how-to-box" style="text-align: center; width: 60%;">
+            <h1 class="title-3d" style="font-size: 5vmin; color: #ff6b81; text-shadow: none; margin-top: 0;">⚙️ Audio Settings</h1>
+            
+            <div style="margin: 3vmin 0; text-align: left;">
+                <label style="font-size: 3vmin; font-weight: bold; color: #333;">ดนตรี (Music): <span id="bgm-val">60%</span></label>
+                <input type="range" id="bgm-slider" min="0" max="100" value="60" style="height: 3vmin; margin-top: 1vmin;">
+            </div>
+            
+            <div style="margin: 3vmin 0; text-align: left;">
+                <label style="font-size: 3vmin; font-weight: bold; color: #333;">เสียงพูด (Speech): <span id="speech-val">100%</span></label>
+                <input type="range" id="speech-slider" min="0" max="100" value="100" style="height: 3vmin; margin-top: 1vmin;">
+            </div>
+            
+            <button class="btn" style="background-color: #ee5253; margin-top: 2vmin;" onclick="closeSettings()">Save & Close</button>
+        </div>
     </div>
 
     <div id="how-to-screen" class="screen">
@@ -148,8 +174,13 @@
             <div id="boss-timer-display">Time: 30</div>
             <button class="btn-home" onclick="location.reload()">🏠 Home</button>
         </div>
-        <h1 class="title-3d" style="position: absolute; top: 15vmin;">BOSS STAGE</h1>
-        <div class="target-word" id="word-to-say">Word</div>
+        <h1 class="title-3d" style="position: absolute; top: 12vmin;">BOSS STAGE</h1>
+        
+        <div style="display: flex; align-items: center; justify-content: center; gap: 3vmin; margin-bottom: 4vmin;">
+            <div class="target-word" id="word-to-say">Word</div>
+            <button class="btn-replay" onclick="replayBossWord()">🔊</button>
+        </div>
+
         <button class="btn" id="mic-btn" style="background-color: #ff4757;" onclick="startListening()">🎤 Tap to Start Mic</button>
         <div id="boss-feedback" class="feedback-pop">Correct!</div>
     </div>
@@ -187,6 +218,27 @@
     let score = 0, timeLeft = 30, gameInterval, spawnInterval, bossInterval, currentMode, vocabPool = [];
     let currentBossWord = "", isMicActive = false, isBossStageActive = false, isProcessing = false;
     let nativeVoice = null;
+    
+    // --- 🎛️ ตัวแปรควบคุมระดับเสียง ---
+    let bgmVolume = 0.6; // ดนตรีเริ่มต้น 60%
+    let speechVolume = 1.0; // เสียงพูดเริ่มต้น 100%
+
+    // ฟังก์ชันเปิด-ปิด หน้าตั้งค่า
+    function openSettings() { document.getElementById('settings-modal').style.display = 'flex'; }
+    function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
+
+    // ผูก Event ให้กับ Slider
+    document.getElementById('bgm-slider').addEventListener('input', function() {
+        bgmVolume = this.value / 100;
+        document.getElementById('bgm-val').innerText = this.value + '%';
+        const music = document.getElementById('bg-music');
+        if(music) music.volume = bgmVolume;
+    });
+
+    document.getElementById('speech-slider').addEventListener('input', function() {
+        speechVolume = this.value / 100;
+        document.getElementById('speech-val').innerText = this.value + '%';
+    });
 
     function loadNativeVoice() {
         const voices = window.speechSynthesis.getVoices();
@@ -207,7 +259,9 @@
         let msg = new SpeechSynthesisUtterance(t);
         if (!nativeVoice) loadNativeVoice();
         if (nativeVoice) msg.voice = nativeVoice;
-        msg.lang = 'en-US'; msg.rate = 0.9;
+        msg.lang = 'en-US'; 
+        msg.rate = 0.9;
+        msg.volume = speechVolume; // ใช้ค่าจากตัวตั้งค่า
         window.speechSynthesis.speak(msg);
     }
 
@@ -228,7 +282,10 @@
 
     function startGameSession() {
         const music = document.getElementById('bg-music');
-        if(music) { music.volume = 0.4; music.play().catch(e => console.log("รอโต้ตอบ")); }
+        if(music) { 
+            music.volume = bgmVolume; // ใช้ค่าดนตรีเริ่มต้น
+            music.play().catch(e => console.log("รอโต้ตอบ")); 
+        }
         let wakeUpVoice = new SpeechSynthesisUtterance(' ');
         wakeUpVoice.volume = 0; window.speechSynthesis.speak(wakeUpVoice);
         showScreen('mode-screen');
@@ -360,6 +417,11 @@
     function nextBossWord() {
         const word = currentMode.vocab[Math.floor(Math.random() * currentMode.vocab.length)].word;
         currentBossWord = word; document.getElementById('word-to-say').innerText = word; speak(word);
+    }
+
+    // --- ฟังก์ชันกดฟังเสียงซ้ำ ---
+    function replayBossWord() {
+        if (currentBossWord) speak(currentBossWord);
     }
 
     function startListening() {
