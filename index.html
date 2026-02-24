@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Monster Omakase - Mobile Ready</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Mali:wght@400;700&family=Fredoka:wght@600&display=swap');
+
+        /* ป้องกันการเด้งและเลื่อนหน้าจอบนมินิอุปกรณ์ */
+        body { margin: 0; padding: 0; background-color: #2c3e50; display: flex; justify-content: center; align-items: center; height: 100vh; width: 100vw; font-family: 'Fredoka', 'Mali', sans-serif; overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; }
+        
+        /* เกมคอนเทนเนอร์ ปรับให้เต็มจอแบบ 16:9 เสมอ */
+        #game-container { 
+            width: 100vw; height: 100vh; 
+            max-width: calc(100vh * (16 / 9)); max-height: calc(100vw * (9 / 16)); 
+            aspect-ratio: 16 / 9; background-color: #000; position: relative; 
+            overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
+            border-radius: 2vmin; border: 0.8vmin solid #34495e; 
+        }
+
+        .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; flex-direction: column; justify-content: center; align-items: center; background-size: cover; background-position: center; background-repeat: no-repeat; }
+        .active { display: flex; }
+
+        /* --- บังคับแนวนอน (Rotate Device Screen) --- */
+        #orientation-warning { display: none; background: #ee5253; color: white; text-align: center; padding: 20px; z-index: 9999; }
+        @media screen and (orientation: portrait) {
+            #game-container { display: none !important; }
+            #orientation-warning { display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100vw; height: 100vh; }
+            .rotate-icon { font-size: 15vmin; animation: spin 2s infinite ease-in-out; margin-bottom: 20px; }
+            @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(90deg); } }
+        }
+
+        /* --- Backgrounds --- */
+        #home-screen { background-image: url('หน้าแรก.png'); justify-content: flex-end; padding-bottom: 5vmin; }
+        #how-to-screen { background-image: url('หน้าแรก.png'); background-color: rgba(255,255,255,0.9); background-blend-mode: overlay; }
+        #characters-screen { background-image: url('monster characters.png'); background-size: contain; background-color: #fad390; }
+        #mode-screen { background-image: url('หน้าแรก.png'); background-color: rgba(255, 255, 255, 0.85); background-blend-mode: overlay; }
+        #boss-screen { background-image: url('boss.jpeg'); justify-content: flex-end; padding-bottom: 5vmin; }
+        #result-screen { background-image: url('leader board.png'); justify-content: center; }
+        #leaderboard-screen { background-image: url('leader board.png'); justify-content: flex-start; padding-top: 5vmin; }
+
+        /* --- UI Elements (Responsive Sizes) --- */
+        .top-bar { position: absolute; top: 3vmin; width: 100%; display: flex; justify-content: center; align-items: center; z-index: 100; pointer-events: none; }
+        .top-bar > div, .top-bar > button { pointer-events: auto; }
+        #score-display, #boss-score-display { position: absolute; left: 4vmin; font-size: 4vmin; color: #333; text-shadow: 2px 2px #fff; font-weight: bold; }
+        #timer-display, #boss-timer-display { font-size: 4.5vmin; color: #ff4757; background: rgba(255,255,255,0.8); padding: 1vmin 4vmin; border-radius: 4vmin; border: 0.4vmin solid #ff4757; }
+        
+        .btn-home { position: absolute; right: 4vmin; background-color: #54a0ff; box-shadow: 0 0.8vmin 0 #2e86de; border: none; color: white; border-radius: 6vmin; padding: 1.5vmin 3vmin; cursor: pointer; font-family: 'Fredoka', sans-serif; font-size: 2.5vmin; white-space: nowrap; }
+
+        .title-3d { font-size: 7vmin; color: #fff; text-shadow: 0 0.4vmin 0 #ff6b81, 0 0.8vmin 0 #ff6b81, 0 1.2vmin 1.5vmin rgba(0,0,0,0.4); margin-bottom: 3vmin; text-align: center; line-height: 1.2; }
+        .target-word { font-size: 10vmin; color: #fffa65; font-weight: bold; text-shadow: 0.5vmin 0.5vmin 0px #ff4757, 1vmin 1vmin 0px #333, 1.5vmin 1.5vmin 2vmin rgba(0,0,0,0.5); margin-bottom: 4vmin; z-index: 20; letter-spacing: 0.5vmin; }
+        
+        .btn { padding: 2vmin 4vmin; font-size: 3vmin; background-color: #ff9ff3; color: white; border: none; border-radius: 6vmin; cursor: pointer; box-shadow: 0 0.8vmin 0 #f368e0; font-family: 'Fredoka', sans-serif; margin: 1vmin; transition: all 0.1s; -webkit-tap-highlight-color: transparent; white-space: nowrap; }
+        .btn:active { transform: translateY(0.6vmin); box-shadow: 0 0.2vmin 0 #f368e0; }
+        
+        .mic-active-effect { box-shadow: 0 0 3vmin #ff6b81, 0 1vmin 0 #c0392b !important; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+
+        /* --- Game Elements --- */
+        .mouth-zone { position: absolute; border-radius: 50%; z-index: 10; border: 0.6vmin dashed rgba(255, 255, 255, 0.7); background: rgba(255, 255, 255, 0.2); box-shadow: 0 0 2vmin rgba(255, 255, 255, 0.3); }
+        .conveyor-belt { position: absolute; bottom: 0; width: 100%; height: 18vmin; z-index: 15; pointer-events: none; }
+        
+        /* Sushi Art (Responsive) */
+        .sushi-wrapper { position: absolute; bottom: 4vmin; display: flex; flex-direction: column; align-items: center; cursor: grab; filter: drop-shadow(0 1vmin 1vmin rgba(0,0,0,0.4)); user-select: none; z-index: 150; touch-action: none; transition: transform 0.1s; }
+        .sushi-topping { width: 110%; height: 4vmin; border-radius: 3vmin 3vmin 1vmin 1vmin; margin-bottom: -1.5vmin; z-index: 2; border: 0.3vmin solid rgba(0,0,0,0.1); border-bottom: none; }
+        .sushi-rice { background: #fff; border: 0.5vmin solid #ccc; padding: 1vmin 3vmin; border-radius: 1.5vmin 1.5vmin 3vmin 3vmin; font-size: 3vmin; font-weight: bold; color: #333; z-index: 1; text-align: center; box-shadow: inset -0.5vmin -0.5vmin 1vmin rgba(0,0,0,0.08); }
+
+        .topping-1 { background: repeating-linear-gradient(45deg, #ff7f50, #ff7f50 1.5vmin, #ff9f7a 1.5vmin, #ff9f7a 3vmin); }
+        .topping-2 { background: #e74c3c; }
+        .topping-3 { background: #f1c40f; position: relative; }
+        .topping-3::after { content: ''; position: absolute; left: 40%; width: 20%; height: 130%; background: #2f3640; top: -15%; border-radius: 0.3vmin; z-index: 3; }
+        .topping-4 { background: repeating-linear-gradient(90deg, #fff, #fff 1.5vmin, #ff6b81 1.5vmin, #ff6b81 3vmin); border: 0.3vmin solid #ff6b81; }
+        .topping-5 { background: radial-gradient(circle, #ff9f43 40%, transparent 40%), #2f3640; background-size: 2vmin 2vmin; border-radius: 1.5vmin 1.5vmin 0 0; }
+
+        /* --- Feedback & Tables --- */
+        .feedback-pop { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%) scale(0); font-size: 8vmin; font-weight: bold; z-index: 1000; pointer-events: none; text-shadow: 0.6vmin 0.6vmin 0 #000; transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .feedback-pop.show { transform: translate(-50%, -50%) scale(1.2); }
+        .correct { color: #2ed573; } .wrong { color: #ff4757; }
+        
+        .ranking-container { width: 85%; background: rgba(255, 255, 255, 0.9); border-radius: 3vmin; padding: 2vmin; max-height: 45vh; overflow-y: auto; border: 0.6vmin solid #ff9ff3; margin-bottom: 2vmin; }
+        table { width: 100%; border-collapse: collapse; font-size: 2.5vmin; }
+        th { background: #ff6b81; color: white; padding: 1.5vmin; position: sticky; top: 0; }
+        td { padding: 1.5vmin; border-bottom: 0.2vmin solid #ddd; text-align: center; }
+        
+        /* How to play text */
+        .how-to-box { background: white; padding: 4vmin; border-radius: 4vmin; width: 80%; text-align: left; border: 1vmin solid #ff9ff3; box-shadow: 0 2vmin 3vmin rgba(0,0,0,0.1); font-size: 2.5vmin; }
+    </style>
+</head>
+<body>
+
+<div id="orientation-warning">
+    <div class="rotate-icon">📱🔄</div>
+    <h1 style="font-family: 'Fredoka', sans-serif;">Please Rotate Your Device</h1>
+    <p style="font-family: 'Mali', sans-serif; font-size: 1.2rem;">กรุณาหมุนโทรศัพท์เป็นแนวนอนเพื่อเล่นเกมนะครับ!</p>
+</div>
+
+<audio id="bg-music" src="bg-music.mp3" loop preload="auto"></audio>
+
+<div id="game-container">
+    <div id="home-screen" class="screen active">
+        <button class="btn" style="background-color: #54a0ff; box-shadow: 0 0.8vmin 0 #2e86de;" onclick="showScreen('how-to-screen')">How to Play</button>
+        <button class="btn" style="font-size: 4vmin; padding: 3vmin 8vmin;" onclick="startGameSession()">START</button>
+    </div>
+
+    <div id="how-to-screen" class="screen">
+        <button class="btn" style="position: absolute; top: 2vmin; left: 2vmin; background-color: #ee5253; box-shadow: 0 0.6vmin 0 #c0392b;" onclick="showScreen('home-screen')">⬅ Back</button>
+        <div class="how-to-box">
+            <h1 class="title-3d" style="font-size: 5vmin; margin-top: 0; color: #ff6b81; text-shadow: none;">How to Play 💡</h1>
+            <p>1. <b>Drag & Drop:</b> ลากซูชิไปป้อนปากมอนสเตอร์ให้ตรงหมวดหมู่</p>
+            <p>2. <b>Listening:</b> ฟังเสียงอ่านคำศัพท์ Native เพื่อสะสมคะแนน</p>
+            <p>3. <b>Boss Stage:</b> กดยอมรับไมค์ 1 ครั้งแล้วตอบไวปานสายฟ้า!</p>
+            <div style="display: flex; justify-content: center; gap: 2vmin; margin-top: 3vmin;">
+                <button class="btn" style="background-color: #ff9f43; box-shadow: 0 0.8vmin 0 #e67e22;" onclick="showScreen('characters-screen')">👾 Meet Monsters</button>
+                <button class="btn" onclick="showScreen('mode-screen')">Let's Go!</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="characters-screen" class="screen">
+        <button class="btn" style="position: absolute; top: 2vmin; left: 2vmin; background-color: #ee5253; z-index: 100;" onclick="showScreen('how-to-screen')">⬅ Back</button>
+        <button class="btn" style="position: absolute; top: 2vmin; right: 2vmin; background-color: #54a0ff; z-index: 100;" onclick="showScreen('mode-screen')">Ready! ▶</button>
+    </div>
+
+    <div id="mode-screen" class="screen">
+        <button class="btn" style="position: absolute; top: 2vmin; left: 2vmin; background-color: #ee5253;" onclick="showScreen('home-screen')">⬅ Back</button>
+        <h1 class="title-3d">Select Mode 🍱</h1>
+        <button class="btn" onclick="startGame(1)">Mode 1: Color & Shape</button>
+        <button class="btn" onclick="startGame(2)">Mode 2: Pet & Wild</button>
+        <button class="btn" onclick="startGame(3)">Mode 3: Body & School</button>
+    </div>
+
+    <div id="game-screen" class="screen">
+        <div class="top-bar">
+            <div id="score-display">Score: 0</div>
+            <div id="timer-display">Time: 30</div>
+            <button class="btn-home" onclick="location.reload()">🏠 Home</button>
+        </div>
+        <div id="mouth-left" class="mouth-zone"></div>
+        <div id="mouth-right" class="mouth-zone"></div>
+        <div class="conveyor-belt" id="conveyor"></div>
+        <div id="big-feedback" class="feedback-pop">Correct!</div>
+    </div>
+
+    <div id="boss-screen" class="screen">
+        <div class="top-bar">
+            <div id="boss-score-display">Score: 0</div>
+            <div id="boss-timer-display">Time: 30</div>
+            <button class="btn-home" onclick="location.reload()">🏠 Home</button>
+        </div>
+        <h1 class="title-3d" style="position: absolute; top: 15vmin;">BOSS STAGE</h1>
+        <div class="target-word" id="word-to-say">Word</div>
+        <button class="btn" id="mic-btn" style="background-color: #ff4757;" onclick="startListening()">🎤 Tap to Start Mic</button>
+        <div id="boss-feedback" class="feedback-pop">Correct!</div>
+    </div>
+
+    <div id="result-screen" class="screen">
+        <div class="how-to-box" style="text-align: center;">
+            <h1 style="color: #ff6b81; font-size: 5vmin; margin:0;">Excellent! 🌟</h1>
+            <h2 id="final-score" style="font-size: 6vmin; color: #f39c12; margin: 2vmin 0;">Score: 0</h2>
+            <input type="text" id="player-name" style="padding: 2vmin; font-size: 3vmin; text-align: center; border-radius: 2vmin; border: 0.4vmin solid #ff9ff3; width: 60%;" placeholder="ชื่อนักเรียน">
+            <br><br><button class="btn" onclick="saveScore()">Save Rank</button>
+        </div>
+    </div>
+
+    <div id="leaderboard-screen" class="screen">
+        <h1 class="title-3d" style="margin-top: 2vmin;">🏆 Ranking Table</h1>
+        <div class="ranking-container">
+            <table id="leaderboard-table">
+                <thead><tr><th>Rank</th><th>Name</th><th>Score</th><th>Stars</th><th>Del</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <button class="btn" style="background-color: #54a0ff; box-shadow: 0 0.8vmin 0 #2e86de;" onclick="location.reload()">Play Again</button>
+    </div>
+</div>
+
+<script>
+    const modesConfig = {
+        1: { bg: "url('โหมดที่ 1.png')", vocab: [{word:"Red",cat:"color"}, {word:"Blue",cat:"color"}, {word:"Green",cat:"color"}, {word:"Yellow",cat:"color"}, {word:"Pink",cat:"color"}, {word:"Black",cat:"color"}, {word:"White",cat:"color"}, {word:"Orange",cat:"color"}, {word:"Purple",cat:"color"}, {word:"Brown",cat:"color"}, {word:"Circle",cat:"shape"}, {word:"Square",cat:"shape"}, {word:"Triangle",cat:"shape"}, {word:"Star",cat:"shape"}, {word:"Heart",cat:"shape"}, {word:"Oval",cat:"shape"}, {word:"Diamond",cat:"shape"}, {word:"Cross",cat:"shape"}, {word:"Arrow",cat:"shape"}, {word:"Line",cat:"shape"}], leftMouth:{cat:"shape",l:"28%",t:"32%",w:"22%",h:"25%"}, rightMouth:{cat:"color",l:"70%",t:"43%",w:"16%",h:"18%"} },
+        2: { bg: "url('โหมดที่ 2.png')", vocab: [{word:"Dog",cat:"pet"}, {word:"Cat",cat:"pet"}, {word:"Fish",cat:"pet"}, {word:"Bird",cat:"pet"}, {word:"Rabbit",cat:"pet"}, {word:"Hamster",cat:"pet"}, {word:"Turtle",cat:"pet"}, {word:"Mouse",cat:"pet"}, {word:"Parrot",cat:"pet"}, {word:"Puppy",cat:"pet"}, {word:"Lion",cat:"wild"}, {word:"Tiger",cat:"wild"}, {word:"Elephant",cat:"wild"}, {word:"Monkey",cat:"wild"}, {word:"Bear",cat:"wild"}, {word:"Snake",cat:"wild"}, {word:"Zebra",cat:"wild"}, {word:"Giraffe",cat:"wild"}, {word:"Hippo",cat:"wild"}, {word:"Fox",cat:"wild"}], leftMouth:{cat:"wild",l:"32%",t:"38%",w:"15%",h:"20%"}, rightMouth:{cat:"pet",l:"69%",t:"35%",w:"12%",h:"16%"} },
+        3: { bg: "url('โหมดที่ 3.png')", vocab: [{word:"Head",cat:"body"}, {word:"Eye",cat:"body"}, {word:"Ear",cat:"body"}, {word:"Nose",cat:"body"}, {word:"Mouth",cat:"body"}, {word:"Arm",cat:"body"}, {word:"Hand",cat:"body"}, {word:"Leg",cat:"body"}, {word:"Foot",cat:"body"}, {word:"Hair",cat:"body"}, {word:"Pen",cat:"school"}, {word:"Pencil",cat:"school"}, {word:"Book",cat:"school"}, {word:"Ruler",cat:"school"}, {word:"Eraser",cat:"school"}, {word:"Desk",cat:"school"}, {word:"Chair",cat:"school"}, {word:"Bag",cat:"school"}, {word:"Paper",cat:"school"}, {word:"Board",cat:"school"}], leftMouth:{cat:"body",l:"29%",t:"42%",w:"15%",h:"22%"}, rightMouth:{cat:"school",l:"62%",t:"38%",w:"12%",h:"20%"} }
+    };
+
+    const fuzzyDict = { "red":["red","เรด"], "blue":["blue","บลู"], "green":["green","กรีน"], "yellow":["yellow","เยลโล่"], "pink":["pink","พิงค์"], "black":["black","แบล็ค"], "white":["white","ไวท์"], "orange":["orange","ออเรนจ์"], "purple":["purple","เพอเพิล"], "brown":["brown","บราวน์"], "circle":["circle","เซอเคิล"], "square":["square","สแควร์"], "triangle":["triangle","ไทรแองเกิล"], "star":["star","สตาร์"], "heart":["heart","ฮาร์ท"], "oval":["oval","โอวอล"], "diamond":["diamond","ไดมอนด์"], "cross":["cross","ครอส"], "arrow":["arrow","แอร์โรว์"], "line":["line","ไลน์"], "dog":["dog","ด็อก"], "cat":["cat","แคท"], "fish":["fish","ฟิช"], "bird":["bird","เบิร์ด"], "rabbit":["rabbit","แรบบิท"], "hamster":["hamster","แฮมสเตอร์"], "turtle":["turtle","เทอเทิล"], "mouse":["mouse","เมาส์"], "parrot":["parrot","แพรรอต"], "puppy":["puppy","พัพพี่"], "lion":["lion","ไลออน"], "tiger":["tiger","ไทเกอร์"], "elephant":["elephant","เอเลเฟนท์"], "monkey":["monkey","มังกี้"], "bear":["bear","แบร์"], "snake":["snake","สเน็ค"], "zebra":["zebra","ซีบร้า"], "giraffe":["giraffe","จีราฟ"], "hippo":["hippo","ฮิปโป"], "fox":["fox","ฟ็อกซ์"], "head":["head","เฮด"], "eye":["eye","อาย"], "ear":["ear","เอียร์"], "nose":["nose","โนส"], "mouth":["mouth","เมาท์"], "arm":["arm","อาร์ม"], "hand":["hand","แฮนด์"], "leg":["leg","เลก"], "foot":["foot","ฟุต"], "hair":["hair","แฮร์"], "pen":["pen","เพน"], "pencil":["pencil","เพนซิล"], "book":["book","บุ๊ค"], "ruler":["ruler","รูเลอร์"], "eraser":["eraser","อีเรเซอร์"], "desk":["desk","เดสก์"], "chair":["chair","แชร์"], "bag":["bag","แบ็ก"], "paper":["paper","เพเพอร์"], "board":["board","บอร์ด"] };
+
+    let score = 0, timeLeft = 30, gameInterval, spawnInterval, bossInterval, currentMode, vocabPool = [];
+    let currentBossWord = "", isMicActive = false, isBossStageActive = false, isProcessing = false;
+    let nativeVoice = null;
+
+    function loadNativeVoice() {
+        const voices = window.speechSynthesis.getVoices();
+        if (voices.length === 0) return;
+        const preferredNames = ['Google US English', 'Microsoft Zira', 'Microsoft Aria', 'Samantha', 'Karen', 'Daniel'];
+        for (let name of preferredNames) {
+            nativeVoice = voices.find(v => v.name.includes(name));
+            if (nativeVoice) break;
+        }
+        if (!nativeVoice) nativeVoice = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Premium') || v.name.includes('Enhanced')));
+        if (!nativeVoice) nativeVoice = voices.find(v => v.lang === 'en-US') || voices.find(v => v.lang.startsWith('en'));
+    }
+    loadNativeVoice();
+    if (window.speechSynthesis.onvoiceschanged !== undefined) window.speechSynthesis.onvoiceschanged = loadNativeVoice;
+
+    function speak(t) {
+        window.speechSynthesis.cancel();
+        let msg = new SpeechSynthesisUtterance(t);
+        if (!nativeVoice) loadNativeVoice();
+        if (nativeVoice) msg.voice = nativeVoice;
+        msg.lang = 'en-US'; msg.rate = 0.9;
+        window.speechSynthesis.speak(msg);
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition;
+    if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.lang = 'en-US';
+        recognition.interimResults = true; 
+        recognition.continuous = true;
+    }
+
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        if(id === 'leaderboard-screen') displayLeaderboard();
+    }
+
+    function startGameSession() {
+        const music = document.getElementById('bg-music');
+        if(music) { music.volume = 0.4; music.play().catch(e => console.log("รอโต้ตอบ")); }
+        let wakeUpVoice = new SpeechSynthesisUtterance(' ');
+        wakeUpVoice.volume = 0; window.speechSynthesis.speak(wakeUpVoice);
+        showScreen('mode-screen');
+    }
+
+    function startGame(m) {
+        currentMode = modesConfig[m]; score = 0; timeLeft = 30; vocabPool = [];
+        document.getElementById('game-screen').style.backgroundImage = currentMode.bg;
+        setupMouths(); showScreen('game-screen');
+        gameInterval = setInterval(() => {
+            timeLeft--; document.getElementById('timer-display').innerText = `Time: ${timeLeft}`;
+            if(timeLeft<=0) endFeeding();
+        }, 1000);
+        spawnSushi(); spawnInterval = setInterval(spawnSushi, 2000);
+    }
+
+    function setupMouths() {
+        const ml = document.getElementById('mouth-left'), mr = document.getElementById('mouth-right');
+        ml.style.left = currentMode.leftMouth.l; ml.style.top = currentMode.leftMouth.t;
+        ml.style.width = currentMode.leftMouth.w; ml.style.height = currentMode.leftMouth.h;
+        mr.style.left = currentMode.rightMouth.l; mr.style.top = currentMode.rightMouth.t;
+        mr.style.width = currentMode.rightMouth.w; mr.style.height = currentMode.rightMouth.h;
+        ml.dataset.cat = currentMode.leftMouth.cat; mr.dataset.cat = currentMode.rightMouth.cat;
+    }
+
+    function spawnSushi() {
+        if (vocabPool.length === 0) vocabPool = [...currentMode.vocab];
+        const randomIndex = Math.floor(Math.random() * vocabPool.length);
+        const item = vocabPool.splice(randomIndex, 1)[0];
+        const toppingType = Math.floor(Math.random() * 5) + 1;
+        const wrapper = document.createElement('div'); wrapper.className = 'sushi-wrapper'; 
+        wrapper.innerHTML = `<div class="sushi-topping topping-${toppingType}"></div><div class="sushi-rice">${item.word}</div>`;
+        document.getElementById('game-screen').appendChild(wrapper);
+        speak(item.word);
+
+        let isDragging = false;
+        
+        const handleStart = (e) => { 
+            isDragging = true; 
+            wrapper.style.zIndex = 1000; 
+            wrapper.style.transform = 'scale(1.1)'; 
+        };
+        
+        const handleMove = (e) => {
+            if (!isDragging) return; 
+            e.preventDefault(); 
+            let touch = e.touches ? e.touches[0] : e;
+            wrapper.style.position = 'fixed';
+            wrapper.style.left = (touch.clientX - wrapper.offsetWidth / 2) + 'px';
+            wrapper.style.top = (touch.clientY - wrapper.offsetHeight / 2) + 'px';
+            wrapper.style.bottom = 'auto';
+        };
+        
+        const handleEnd = (e) => {
+            if (!isDragging) return;
+            isDragging = false;
+            wrapper.style.transform = 'scale(1)';
+            
+            const sushiRect = wrapper.getBoundingClientRect();
+            let matched = false;
+            
+            document.querySelectorAll('.mouth-zone').forEach(m => {
+                const mRect = m.getBoundingClientRect();
+                if (!(sushiRect.right < mRect.left || sushiRect.left > mRect.right || sushiRect.bottom < mRect.top || sushiRect.top > mRect.bottom)) {
+                    matched = true; checkMatch(item.cat, m);
+                }
+            });
+            
+            if (matched) {
+                wrapper.remove();
+            } else {
+                wrapper.style.position = 'absolute';
+                wrapper.style.top = 'auto';
+                wrapper.style.bottom = '4vmin';
+            }
+        };
+
+        wrapper.addEventListener('mousedown', handleStart);
+        document.addEventListener('mousemove', handleMove, {passive: false});
+        document.addEventListener('mouseup', handleEnd);
+
+        wrapper.addEventListener('touchstart', handleStart, {passive: false});
+        wrapper.addEventListener('touchmove', handleMove, {passive: false});
+        wrapper.addEventListener('touchend', handleEnd);
+
+        let pos = 100;
+        let move = setInterval(() => { 
+            if(!isDragging) { 
+                pos -= 0.6; wrapper.style.left = pos + '%'; 
+                if(pos < -20) { clearInterval(move); if(wrapper.parentNode) wrapper.remove(); } 
+            } 
+        }, 20);
+    }
+
+    function checkMatch(cat, mouth) {
+        const correct = (cat === mouth.dataset.cat);
+        showFeedback('big-feedback', correct);
+        if(correct) { score += 10; speak("Correct!"); } else { speak("Wrong!"); }
+        document.getElementById('score-display').innerText = `Score: ${score}`;
+    }
+
+    function showFeedback(id, correct) {
+        const fb = document.getElementById(id); fb.innerText = correct ? "Correct! ✅" : "Wrong! ❌";
+        fb.className = `feedback-pop show ${correct ? 'correct' : 'wrong'}`;
+        setTimeout(() => fb.classList.remove('show'), 800);
+    }
+
+    function endFeeding() { clearInterval(gameInterval); clearInterval(spawnInterval); document.querySelectorAll('.sushi-wrapper').forEach(s => s.remove()); startBoss(); }
+
+    function startBoss() {
+        showScreen('boss-screen'); let bTime = 30;
+        document.getElementById('boss-score-display').innerText = `Score: ${score}`;
+        isBossStageActive = true; isMicActive = false; isProcessing = false;
+        const btn = document.getElementById('mic-btn');
+        btn.innerText = "🎤 Tap to Start Mic"; btn.style.backgroundColor = "#ff4757";
+        btn.classList.remove('mic-active-effect'); btn.style.pointerEvents = "auto";
+
+        bossInterval = setInterval(() => { 
+            bTime--; document.getElementById('boss-timer-display').innerText = `Time: ${bTime}`; 
+            if(bTime<=0) { 
+                isBossStageActive = false; isMicActive = false;
+                if(recognition) recognition.stop();
+                clearInterval(bossInterval); showResult(); 
+            } 
+        }, 1000);
+        nextBossWord();
+    }
+
+    function nextBossWord() {
+        const word = currentMode.vocab[Math.floor(Math.random() * currentMode.vocab.length)].word;
+        currentBossWord = word; document.getElementById('word-to-say').innerText = word; speak(word);
+    }
+
+    function startListening() {
+        if (!recognition) return alert("โปรดใช้เบราว์เซอร์ Google Chrome เพื่อใช้ระบบเสียงครับ!");
+        if (isMicActive) return;
+
+        isMicActive = true; isProcessing = false; 
+        const btn = document.getElementById('mic-btn'); 
+        btn.innerText = "🔴 Mic Active (พูดได้เลย!)"; 
+        btn.style.backgroundColor = "#ff6b81"; btn.classList.add('mic-active-effect'); btn.style.pointerEvents = "none";
+        
+        try { recognition.start(); } catch(e) {}
+
+        recognition.onresult = (event) => {
+            if (isProcessing || !isBossStageActive) return; 
+            
+            let currentTranscript = '';
+            let isFinalWord = false;
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                currentTranscript += event.results[i][0].transcript.toLowerCase();
+                if (event.results[i].isFinal) isFinalWord = true;
+            }
+            
+            let spoken = currentTranscript.trim().replace(/[^a-zก-ฮะ-์ ]/gi, "");
+            let isCorrect = spoken.includes(currentBossWord.toLowerCase());
+            if (!isCorrect && fuzzyDict[currentBossWord.toLowerCase()]) {
+                isCorrect = fuzzyDict[currentBossWord.toLowerCase()].some(val => spoken.includes(val));
+            }
+            
+            if (isCorrect) {
+                isProcessing = true; score += 20; document.getElementById('boss-score-display').innerText = `Score: ${score}`;
+                showFeedback('boss-feedback', true); speak("Excellent!"); 
+                try { recognition.stop(); } catch(e) {}
+                setTimeout(() => { if (isBossStageActive) { nextBossWord(); isProcessing = false; } }, 1500);
+            } 
+            else if (isFinalWord) {
+                isProcessing = true; showFeedback('boss-feedback', false); speak("Try again!"); 
+                setTimeout(() => { isProcessing = false; }, 1000);
+            }
+        };
+
+        recognition.onend = () => { if(isMicActive && isBossStageActive) { setTimeout(() => { try { recognition.start(); } catch(e) {} }, 100); } };
+    }
+
+    function showResult() { document.getElementById('final-score').innerText = `Score: ${score}`; showScreen('result-screen'); }
+
+    function saveScore() {
+        const name = document.getElementById('player-name').value || "Student";
+        const stars = score >= 150 ? "⭐⭐⭐" : (score >= 80 ? "⭐⭐" : "⭐");
+        let history = JSON.parse(localStorage.getItem('monsterScores')) || [];
+        history.push({ name, score, stars }); history.sort((a, b) => b.score - a.score);
+        localStorage.setItem('monsterScores', JSON.stringify(history));
+        displayLeaderboard(); showScreen('leaderboard-screen');
+    }
+
+    function displayLeaderboard() {
+        const tbody = document.querySelector('#leaderboard-table tbody'); tbody.innerHTML = '';
+        const history = JSON.parse(localStorage.getItem('monsterScores')) || [];
+        history.forEach((d, i) => { tbody.innerHTML += `<tr><td>${i+1}</td><td>${d.name}</td><td>${d.score}</td><td>${d.stars}</td><td><button class="btn" style="padding: 1vmin 2vmin; font-size: 2vmin; background-color:#ee5253; margin:0;" onclick="deleteScore(${i})">Del</button></td></tr>`; });
+    }
+
+    function deleteScore(index) {
+        if(confirm("ลบรายชื่อ?")) {
+            let history = JSON.parse(localStorage.getItem('monsterScores')) || [];
+            history.splice(index, 1); localStorage.setItem('monsterScores', JSON.stringify(history));
+            displayLeaderboard();
+        }
+    }
+</script>
+</body>
+</html>
